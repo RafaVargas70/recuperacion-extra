@@ -1,5 +1,6 @@
 package rafa.vargas.extraordinariarafita
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
@@ -10,6 +11,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import modelo.ClaseConexion
+import java.security.MessageDigest
 
 class Registrarse: AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,12 +27,19 @@ class Registrarse: AppCompatActivity() {
         val btnRegresarLogin = findViewById<Button>(R.id.btnRegresarLogin)
 
 
+        fun hashSHA256(contraencriptada: String): String {
+            val bytes = MessageDigest.getInstance("SHA-256").digest(contraencriptada.toByteArray())
+            return bytes.joinToString ("") { "%02x".format(it) }
+        }
+
+
         btnCrearCuenta.setOnClickListener {
+            println("CLIC")
 
             val nombre = txtNombreRegistro.text.toString()
             val apellido = txtApellidoRegistro.text.toString()
             val correo = txtCorreoRegistro.text.toString()
-            val contra = txtPasswordRegistro.text.toString()
+            val contraencriptada = hashSHA256(txtPasswordRegistro.text.toString())
             val edad = txtEdadRegistro.text.toString()
 
             var hayErrores = false
@@ -56,7 +65,7 @@ class Registrarse: AppCompatActivity() {
                 txtCorreoRegistro.error = null
             }
 
-            if (contra.isEmpty()) {
+            if (contraencriptada.isEmpty()) {
                 txtPasswordRegistro.error = "La contraseña es obligatoria"
                 hayErrores = true
             } else {
@@ -74,50 +83,66 @@ class Registrarse: AppCompatActivity() {
                 txtEdadRegistro.error = "La edad no tiene un formato valido"
                 hayErrores = true
 
-                if (!correo.matches(Regex("[a-zA-Z0-9._-]+@[a-z]+[.]+[a-z]+"))) {
-                    txtCorreoRegistro.error = "El correo no tiene un formato valido"
-                    hayErrores = true
-                } else {
-                    txtCorreoRegistro.error = null
-                }
-
-                if (contra.length <= 8) {
-                    txtPasswordRegistro.error = "La contraseña debe tener mas de 8 caracteres"
-                    hayErrores = true
-                } else {
-                    txtPasswordRegistro.error = null
-                }
-
-
-
-
-                GlobalScope.launch(Dispatchers.IO) {
-                    //Creo un objeto de la clase conexion
-                    val objConexion = ClaseConexion().cadenaConexion()
-
-                    //Creo una variable que contenga un PrepareStatement
-                    val crearUsuario =
-                        objConexion?.prepareStatement("INSERT INTO REGYLOG (NOMBRE, APELLIDOS, CORREO_ELECTRONICO, CONTRASEÑA, EDAD) VALUES (?, ?, ?, ?, ?)")!!
-                    crearUsuario.setString(1, txtNombreRegistro.text.toString())
-                    crearUsuario.setString(2, txtApellidoRegistro.text.toString())
-                    crearUsuario.setString(3, txtCorreoRegistro.text.toString())
-                    crearUsuario.setString(4, txtPasswordRegistro.text.toString())
-                    crearUsuario.setString(5, txtEdadRegistro.text.toString())
-                    crearUsuario.executeUpdate()
-                    withContext(Dispatchers.Main) {
-                        //Abro otra corrutina o "Hilo" para mostrar un mensaje y limpiar los campos
-                        //Lo hago en el Hilo Main por que el hilo IO no permite mostrar nada en pantalla
-                        Toast.makeText(this@Registrarse, "Usuario creado", Toast.LENGTH_SHORT)
-                            .show()
-                        txtNombreRegistro.setText("")
-                        txtApellidoRegistro.setText("")
-                        txtCorreoRegistro.setText("")
-                        txtPasswordRegistro.setText("")
-                        txtEdadRegistro.setText("")
-                    }
-                }
-
             }
+
+            if (!correo.matches(Regex("[a-zA-Z0-9._-]+@[a-z]+[.]+[a-z]+"))) {
+                txtCorreoRegistro.error = "El correo no tiene un formato valido"
+                hayErrores = true
+            } else {
+                txtCorreoRegistro.error = null
+            }
+
+            if (contraencriptada.length <= 8) {
+                txtPasswordRegistro.error = "La contraseña debe tener mas de 8 caracteres"
+                hayErrores = true
+            } else {
+                txtPasswordRegistro.error = null
+            }
+
+
+if(hayErrores){
+    println("hay errores")
+}else{
+    println("se dio clic antes de la corrutina")
+    GlobalScope.launch(Dispatchers.IO) {
+        //Creo un objeto de la clase conexion
+        val objConexion = ClaseConexion().cadenaConexion()
+        println("antes del insert")
+        //Creo una variable que contenga un PrepareStatement
+        val crearUsuario =
+            objConexion?.prepareStatement("INSERT INTO REGYLOG (NOMBRE, APELLIDOS, CORREO_ELECTRONICO, CONTRASEÑA, EDAD) VALUES (?, ?, ?, ?, ?)")!!
+        crearUsuario.setString(1, txtNombreRegistro.text.toString())
+        crearUsuario.setString(2, txtApellidoRegistro.text.toString())
+        crearUsuario.setString(3, txtCorreoRegistro.text.toString())
+        crearUsuario.setString(4, contraencriptada)
+        crearUsuario.setString(5, txtEdadRegistro.text.toString())
+        crearUsuario.executeUpdate()
+        withContext(Dispatchers.Main) {
+            //Abro otra corrutina o "Hilo" para mostrar un mensaje y limpiar los campos
+            //Lo hago en el Hilo Main por que el hilo IO no permite mostrar nada en pantalla
+            Toast.makeText(this@Registrarse, "Usuario creado", Toast.LENGTH_SHORT)
+                .show()
+            txtNombreRegistro.setText("")
+            txtApellidoRegistro.setText("")
+            txtCorreoRegistro.setText("")
+            txtPasswordRegistro.setText("")
+            txtEdadRegistro.setText("")
         }
+    }
+
+    val pantallaLogin = Intent(this, Login::class.java)
+    startActivity(pantallaLogin)
+
+}
+
+
+
+        }
+
+        btnRegresarLogin.setOnClickListener {
+            val pantallaLogin = Intent(this, Login::class.java)
+            startActivity(pantallaLogin)
+        }
+
     }
 }
